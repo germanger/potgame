@@ -125,6 +125,24 @@
 			};
 		}]);
 		
+		angular.module('potGameApp').directive('focus', ['$timeout', function($timeout) {
+			return {
+				scope : {
+					trigger : '@focus'
+				},
+
+				link : function(scope, element) {
+					scope.$watch('trigger', function(value) {
+						if (value === "true") {
+							$timeout(function() {
+								element[0].focus();
+							});
+						}
+					});
+				}
+			};
+		}]);
+		
 		angular.module('potGameApp').directive('resizeTarget', ['$document', '$window', function($document, $window) {
 
 			return function($scope, $element, $attrs) {
@@ -950,8 +968,7 @@
 			<div class="col-md-12">
 				<h2 style="margin-top: 30px">{{ 'TO-DO' | translate }}</h2>
 				<ul>
-					<li>Autofocus al crear frase</li>
-					<li>Enter para crear frase</li>
+					<li>Que se pueda crear frase con ENTER</li>
 				</ul>
 			</div>
 		</div>
@@ -973,7 +990,7 @@
                 <div class="col-md-12">
                     <div class="form-group">
                         <label>Frase</label>
-                        <input type="text" class="form-control input-sm" ng-model="text" />
+                        <input type="text" class="form-control input-sm" ng-model="text" focus="true" />
                     </div>
                 </div>
             </div>
