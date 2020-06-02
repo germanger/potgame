@@ -1,0 +1,989 @@
+
+<!DOCTYPE html>
+<html ng-app="potGameApp">
+<head>
+    <title>Pot Game</title>
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+          
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/angularjs-toaster/0.4.12/toaster.min.css" />
+    
+    <style>
+        html {
+            overflow-y: scroll;
+        }
+        
+        h1, h2, h3, h4 {
+            color: #C49E73;
+        }
+    
+        h2 {
+            font-size: 20px;
+        }
+        
+        .bordered {
+            border: 3px solid #252323;
+        }
+        
+        hr {
+          border-top: 1px dashed #927878;
+        }
+        
+        a, a:hover, a:focus, a:visited {
+            color: #C49E73;
+        }
+        
+        th {
+            background-color: #2A2A2A;
+        }
+        
+        body, .modal-content {
+            font-size: 12px;
+            color: #D5B3E5;
+            background-color: #373737;
+        }
+        
+        .table-bordered {
+            border: 0px dashed #7A6482;
+        }
+        
+        .table-bordered>tbody>tr>td, .table-bordered>tbody>tr>th, .table-bordered>tfoot>tr>td, .table-bordered>tfoot>tr>th, .table-bordered>thead>tr>td, .table-bordered>thead>tr>th {
+            border: 0px;
+            border-bottom: 1px dashed #7A6482;
+        }
+
+        .form-control, .form-control[readonly] {
+            color: #fff;
+            background-color: #2A2A2A;
+            outline: none;
+            border: none !important;
+            -webkit-box-shadow: none !important;
+            box-shadow: none !important;
+            -webkit-transition: none !important;
+            -o-transition: none !important;
+        }
+        
+        .btn-default {
+            color: #333;
+            background-color: #8F8F8F;
+            border-color: #9D9D9D;
+        }
+        
+        .btn-success {
+            color: #000;
+        }
+        
+        .nav-tabs>li.active>a, .nav-tabs>li.active>a:focus, .nav-tabs>li.active>a:hover {
+            color: #ffffff;
+            cursor: default;
+            background-color: #373737;
+            border: 1px solid #ddd;
+            border-bottom-color: transparent;
+        }
+        
+        .nav>li>a:focus, .nav>li>a:hover {
+            text-decoration: none;
+            background-color: #373737;
+        }
+        
+        .nav-tabs>li>a {
+            border: 0px;
+        }
+		
+		.vertical-resizer {
+			height: 7px; 
+			background-color: #272727; 
+			margin-bottom: 18px; 
+			cursor: ns-resize;
+		}
+		
+		.vertical-resizer:hover {
+			background-color: #77D372;
+		}
+    </style>
+    
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.5.8/angular.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/angular-ui-bootstrap/2.5.0/ui-bootstrap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/angular-ui-bootstrap/2.5.0/ui-bootstrap-tpls.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/angularjs-toaster/2.1.0/toaster.min.js"></script>
+    <script src="https://cdn.rawgit.com/Luegg/angularjs-scroll-glue/v2.0.4/src/scrollglue.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bower-angular-translate/2.7.1/angular-translate.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/angular-translate-storage-cookie/2.7.2/angular-translate-storage-cookie.min.js"></script>
+    <script src="https://cdn.socket.io/socket.io-1.3.5.js"></script>
+
+    <script>
+        angular.module('potGameApp', [
+        'ui.bootstrap',
+        'luegg.directives',
+        'toaster',
+        'pascalprecht.translate']);
+		
+		angular.module('potGameApp').filter('secondsToDateTime', [function() {
+			return function(seconds) {
+				return new Date(1970, 0, 1).setSeconds(seconds);
+			};
+		}]);
+		
+		angular.module('potGameApp').directive('resizeTarget', ['$document', '$window', function($document, $window) {
+
+			return function($scope, $element, $attrs) {
+
+				$element.on('mousedown', function(event) {
+					event.preventDefault();
+
+					$document.on('mousemove', mousemove); // relies on jQuery
+					$document.on('mouseup', mouseup); // relies on jQuery
+				});
+
+				function mousemove(event) {
+					var y = window.innerHeight - event.pageY;
+
+					var targetElement = angular.element(document.querySelector($attrs.resizeTarget)); 
+					var scale = event.movementY;
+					var currentHeight = parseInt(targetElement.css('height'));
+					var newHeight = currentHeight + (scale * 1);
+
+					if (newHeight < 100) {
+						return;
+					}
+
+					// Set new height via css
+					targetElement.css({
+						height: newHeight + 'px'
+					});
+
+					// Trigger resize
+					$(window).resize();
+				};
+
+				function mouseup(event) {
+					//$window.trigger("resize");
+				  
+					$document.unbind('mousemove', mousemove);
+					$document.unbind('mouseup', mouseup);
+				};
+			};
+
+		}]);
+        
+        angular.module('potGameApp').config(['$translateProvider', function($translateProvider) {
+            $translateProvider.translations('en', {
+                'username connected': '{{username}} connected',
+                'username disconnected': '{{username}} disconnected',
+                'username cleared messages': '{{username}} cleared messages',
+                'oldUsername is now newUsername': '{{oldUsername}} is now {{newUsername}}',
+            });
+            
+            $translateProvider.translations('es', {
+                'username connected': 'Se conectó {{username}}',
+                'username disconnected': 'Se desconectó {{username}}',
+                'username cleared messages': '{{username}} limpió los mensajes',
+                'oldUsername is now newUsername': '{{oldUsername}} ahora es {{newUsername}}',
+                'Play the pot game with your friends online': 'Juega al juego de la olla con amigos online',
+                'The code is available at': 'El código está disponible en',
+                'Messages': 'Mensajes',
+                'Users': 'Usuarios',
+				'Pot': 'Olla',
+				'Desk': 'Mesa',
+				'Phrase': 'Frase',
+                'Change your name and color': 'Cambia tu nombre y color',
+                'Copy link and invite people': 'Copia el link e invita gente',
+                'Send': 'Enviar',
+                'Set': 'Aplicar',
+                'Clear messages': 'Limpiar mensajes',
+                'says': 'dice',
+                'typing...': 'escribiendo...',
+                'TO-DO': 'Por hacer',
+                'Developed by': 'Desarrollado por',
+            });
+
+            $translateProvider.preferredLanguage('en');
+            //$translateProvider.useCookieStorage();
+        }]);
+                
+        angular.module('potGameApp').directive('ngEnter', function () {
+            return function (scope, element, attrs) {
+                element.bind("keydown keypress", function (event) {
+                    if (event.which === 13) {
+                        scope.$apply(function (){
+                            scope.$eval(attrs.ngEnter);
+                        });
+
+                        event.preventDefault();
+                    }
+                });
+            };
+        });
+        
+        angular.module('potGameApp').controller('newPhraseController', ['$scope', '$http', '$filter', '$uibModalInstance', '$window', function ($scope, $http, $filter, $uibModalInstance, $window) {
+
+            $scope.create = function () {
+                $scope.creatingPhrase = true;
+                
+                var httpRequest = $http({
+                    method: "get",
+                    url: "/api/phrases/create",
+                    params: {
+                        socketId: $scope.socket.id,
+                        text: $scope.text
+                    },
+                    data: {}
+                });
+                
+                httpRequest.success(function(response) {
+                
+                    if (response.error) {
+                        toaster.pop('error', "", response.message);
+                        return;
+                    }
+
+					$uibModalInstance.close();
+                });
+                
+                httpRequest['finally'](function() {
+                    $scope.creatingPhrase = false;
+                });
+            };
+
+            $scope.cancel = function () {
+                $uibModalInstance.dismiss('cancel');
+            };
+        }]);
+        
+        angular.module('potGameApp').controller('mainController', ['$scope', '$http', '$window', 'toaster', '$interval', '$location', '$translate', '$uibModal', function ($scope, $http, $window, toaster, $interval, $location, $translate, $uibModal) {
+
+            $scope.url = "";
+            $scope.socket = null;
+            $scope.currentUser = {};
+			$scope.duration = 0;
+            $scope.unreadMessagesCount = 0;
+            $scope.logged = false;
+            $scope.newMessageBody = "";
+			$scope.gameSummary = {
+				bin1Count: 0,
+				bin2Count: 0
+			};
+            
+            $scope.users = [];
+            $scope.messages = [];
+            $scope.serverInfo = {};
+            
+            $scope.currentLanguage = $translate.use();
+            
+            $scope.setLanguage = function() {
+                $translate.use($scope.currentLanguage);
+            };
+            
+            $scope.openNewPhraseModal = function () {
+
+                var modalInstance = $uibModal.open({
+                    templateUrl: 'new-phrase-modal.html',
+                    controller: 'newPhraseController',
+                    scope: $scope,
+					size: 'sm',
+                    backdrop: false
+                });
+
+                modalInstance.result.then(function (result) {
+                }, null);
+            };
+			
+            $scope.getOneFromBin1 = function () {
+                $scope.gettingOneFromBin1 = true;
+                
+                var httpRequest = $http({
+                    method: "get",
+                    url: "/api/phrases/getOneFromBin1",
+                    params: {
+                        socketId: $scope.socket.id,
+                    },
+                    data: {}
+                });
+                
+                httpRequest.success(function(response) {
+                
+                    if (response.error) {
+                        toaster.pop('error', "", response.message);
+                        return;
+                    }
+					
+					$scope.currentPhrase = response.phrase;
+                });
+                
+                httpRequest['finally'](function() {
+                    $scope.gettingOneFromBin1 = false;
+                });
+            };
+			
+            $scope.moveAllToBin1 = function () {
+                $scope.movingAllToBin1 = true;
+                
+                var httpRequest = $http({
+                    method: "get",
+                    url: "/api/phrases/moveAllToBin1",
+                    params: {
+                        socketId: $scope.socket.id,
+                    },
+                    data: {}
+                });
+                
+                httpRequest.success(function(response) {
+                
+                    if (response.error) {
+                        toaster.pop('error', "", response.message);
+                        return;
+                    }
+                });
+                
+                httpRequest['finally'](function() {
+                    $scope.movingAllToBin1 = false;
+                });
+            };
+			
+            $scope.moveToBin1 = function () {
+                $scope.movingToBin1 = true;
+                
+                var httpRequest = $http({
+                    method: "get",
+                    url: "/api/phrases/moveToBin1",
+                    params: {
+                        socketId: $scope.socket.id,
+                    },
+                    data: {}
+                });
+                
+                httpRequest.success(function(response) {
+                
+                    if (response.error) {
+                        toaster.pop('error', "", response.message);
+                        return;
+                    }
+					
+					$scope.currentPhrase = undefined;
+                });
+                
+                httpRequest['finally'](function() {
+                    $scope.movingToBin1 = false;
+                });
+            };
+			
+            $scope.moveToBin2 = function () {
+                $scope.movingToBin2 = true;
+                
+                var httpRequest = $http({
+                    method: "get",
+                    url: "/api/phrases/moveToBin2",
+                    params: {
+                        socketId: $scope.socket.id,
+                    },
+                    data: {}
+                });
+                
+                httpRequest.success(function(response) {
+                
+                    if (response.error) {
+                        toaster.pop('error', "", response.message);
+                        return;
+                    }
+					
+					$scope.currentPhrase = undefined;
+                });
+                
+                httpRequest['finally'](function() {
+                    $scope.movingToBin2 = false;
+                });
+            };
+
+            $scope.updateIsTyping = function (isTyping) {
+                $scope.updatingIsTyping = true;
+                
+                var httpRequest = $http({
+                    method: "get",
+                    url: "/api/users/updateIsTyping",
+                    params: {
+                        socketId: $scope.socket.id,
+                        isTyping: isTyping
+                    },
+                    data: {}
+                });
+                
+                httpRequest.success(function(response) {
+                
+                    if (response.error) {
+                        toaster.pop('error', "", response.message);
+                        return;
+                    }
+                });
+                
+                httpRequest['finally'](function() {
+                    $scope.updatingIsTyping = false;
+                });
+            };
+			
+            $scope.updateIsAway = function (isAway) {
+                $scope.updatingIsAway = true;
+                
+                var httpRequest = $http({
+                    method: "get",
+                    url: "/api/users/updateIsAway",
+                    params: {
+                        socketId: $scope.socket.id,
+                        isAway: isAway
+                    },
+                    data: {}
+                });
+                
+                httpRequest.success(function(response) {
+                
+                    if (response.error) {
+                        toaster.pop('error', "", response.message);
+                        return;
+                    }
+                });
+                
+                httpRequest['finally'](function() {
+                    $scope.updatingIsAway = false;
+                });
+            };
+            
+            $scope.$watch('newMessageBody', function(newValue, oldValue) {                        
+                if (oldValue.length == 0 && newValue.length > 0) {
+                    $scope.updateIsTyping(true);
+                } else if (oldValue.length > 0 && newValue.length == 0) {
+                    $scope.updateIsTyping(false);
+                }
+            }, true);
+            
+            $scope.submitMessage = function () {
+                if ($scope.newMessageBody == '') {
+                    return;
+                }
+            
+                $scope.sendingMessage = true;
+                
+                var httpRequest = $http({
+                    method: "get",
+                    url: "/api/messages/submit",
+                    params: {
+                        socketId: $scope.socket.id,
+                        body: $scope.newMessageBody                       
+                    },
+                    data: {
+                    }
+                });
+                
+                httpRequest.success(function(response) {
+                
+                    if (response.error) {
+                        toaster.pop('error', "", response.message);
+                        return;
+                    }
+                    
+                    $scope.newMessageBody = "";
+                });
+                
+                httpRequest['finally'](function() {
+                    $scope.sendingMessage = false;
+                });
+            };
+            
+            $scope.connect = function () {
+                $scope.socket = io.connect({ query: "roomId=" + $location.search().roomId });
+                
+                $scope.socket.on('connect', function() {
+                    $scope.logged = true;
+                                                          
+                    $scope.socket.on("welcome", function(data) {
+                        $location.search('roomId', data.roomId);
+                        $scope.url = $location.absUrl();
+                        
+                        $scope.fetchUsers();
+                        $scope.fetchMessages();
+                        $scope.fetchGameSummary();
+                    
+                        $scope.currentUser = data.user;
+                        $scope.$apply()
+                    });
+                    
+                    $scope.socket.on("userBroadcastsMessage", function(message) {
+                    
+                        if (document.visibilityState == "hidden") {
+                            $scope.unreadMessagesCount++;
+                            document.title = "(" + $scope.unreadMessagesCount + ") Pot Game";
+                        }
+                    
+                        $scope.messages.push(message);
+                        $scope.$apply()
+                    });
+                    
+                    $scope.socket.on("userClearedMessages", function(data) {                   
+                        $scope.messages.length = 0;
+                        $scope.messages.push(data.message);
+                        
+                        $scope.$apply()
+                    });
+                    
+                    $scope.socket.on("userConnected", function(data) {
+                        $scope.messages.push(data.message);
+                        
+						$scope.fetchGameSummary();
+                        $scope.fetchUsers();
+                        $scope.$apply()
+                    });
+                    
+                    $scope.socket.on("userCreatedPhrase", function(data) {
+                        $scope.messages.push(data.message);
+                        
+						$scope.fetchGameSummary();
+                        $scope.$apply()
+                    });
+					
+                    $scope.socket.on("userGotOneFromBin1", function(data) {
+                        $scope.messages.push(data.message);
+                        
+						$scope.fetchGameSummary();
+						$scope.fetchUsers();
+                        $scope.$apply()
+                    });
+					
+                    $scope.socket.on("userMovedAllToBin1", function(data) {
+                        $scope.messages.push(data.message);
+                        
+						$scope.fetchGameSummary();
+                        $scope.$apply()
+                    });
+					
+                    $scope.socket.on("userMovedPhraseToBin1", function(data) {
+                        $scope.messages.push(data.message);
+                        
+						$scope.fetchGameSummary();
+						$scope.fetchUsers();
+                        $scope.$apply()
+                    });
+					
+                    $scope.socket.on("userMovedPhraseToBin2", function(data) {
+                        $scope.messages.push(data.message);
+                        
+						$scope.fetchGameSummary();
+						$scope.fetchUsers();
+                        $scope.$apply()
+                    });
+					
+                    $scope.socket.on("userChangedName", function(data) {
+                        $scope.messages.push(data.message);
+                        
+                        $scope.fetchUsers();
+                        $scope.$apply()
+                    });
+					
+                    $scope.socket.on("userChangedColor", function(data) {
+                        $scope.messages.push(data.message);
+                        
+                        $scope.fetchUsers();
+                        $scope.$apply()
+                    });
+                    
+                    $scope.socket.on("userUpdatedIsTyping", function(data) {
+                        $scope.fetchUsers();
+                        $scope.$apply()
+                    });
+					
+                    $scope.socket.on("userUpdatedIsAway", function(data) {
+                        $scope.fetchUsers();
+                        $scope.$apply()
+                    });
+                    
+                    $scope.socket.on("userDisconnected", function(data) {
+                        $scope.messages.push(data.message);
+                        
+                        $scope.fetchUsers();
+						$scope.fetchGameSummary();
+                        $scope.$apply()
+                    });
+                });
+                
+                $scope.socket.on('connect_error', function() {
+                });
+            };
+            
+            $scope.fetchUsers = function () {
+                $scope.fetchingUsers = true;
+                
+                var httpRequest = $http({
+                    method: "get",
+                    url: "/api/users/list",
+                    params: {
+                        socketId: $scope.socket.id,
+                    },
+                    data: {
+                    }
+                });
+                
+                httpRequest.success(function(response) {
+                
+                    if (response.error) {
+                        toaster.pop('error', "", response.message);
+                        return;
+                    }
+                    
+                    $scope.users = response.users;
+                });
+                
+                httpRequest['finally'](function() {
+                    $scope.fetchingUsers = false;
+                });
+            };
+            
+            $scope.fetchMessages = function () {
+                $scope.fetchingMessages = true;
+                
+                var httpRequest = $http({
+                    method: "get",
+                    url: "/api/messages/list",
+                    params: {
+                        socketId: $scope.socket.id
+                    },
+                    data: {
+                    }
+                });
+                
+                httpRequest.success(function(response) {
+                
+                    if (response.error) {
+                        toaster.pop('error', "", response.message);
+                        return;
+                    }
+                    
+                    $scope.messages = response.messages;
+                });
+                
+                httpRequest['finally'](function() {
+                    $scope.fetchingMessages = false;
+                });
+            };
+            
+            $scope.clearMessages = function () {
+                $scope.clearingMessages = true;
+                
+                var httpRequest = $http({
+                    method: "get",
+                    url: "/api/messages/clear",
+                    params: {
+                        socketId: $scope.socket.id
+                    },
+                    data: {
+                    }
+                });
+                
+                httpRequest.success(function(response) {
+                
+                    if (response.error) {
+                        toaster.pop('error', "", response.message);
+                        return;
+                    }
+                });
+                
+                httpRequest['finally'](function() {
+                    $scope.clearingMessages = false;
+                });
+            };
+            
+            $scope.changeName = function () {
+                $scope.changingName = true;
+                
+                var httpRequest = $http({
+                    method: "get",
+                    url: "/api/users/changeName",
+                    params: {
+                        socketId: $scope.socket.id,
+                        username: $scope.currentUser.newUsername
+                    },
+                    data: {
+                    }
+                });
+                
+                httpRequest.success(function(response) {
+                
+                    if (response.error) {
+                        toaster.pop('error', "", response.message);
+                        return;
+                    }
+                    
+                    $scope.currentUser.username = $scope.currentUser.newUsername;
+                    $scope.currentUser.newUsername = "";
+                });
+                
+                httpRequest['finally'](function() {
+                    $scope.changingName = false;
+                });
+            };
+			
+            $scope.changeColor = function () {
+                $scope.changingColor = true;
+                
+                var httpRequest = $http({
+                    method: "get",
+                    url: "/api/users/changeColor",
+                    params: {
+                        socketId: $scope.socket.id,
+                        color: $scope.currentUser.color
+                    },
+                    data: {
+                    }
+                });
+                
+                httpRequest.success(function(response) {
+                
+                    if (response.error) {
+                        toaster.pop('error', "", response.message);
+                        return;
+                    }
+                    
+                    $scope.currentUser.color = $scope.currentUser.color;
+                });
+                
+                httpRequest['finally'](function() {
+                    $scope.changingColor = false;
+                });
+            };
+
+            $scope.fetchGameSummary = function () {
+                $scope.fetchingGammeSummary = true;
+                
+                var httpRequest = $http({
+                    method: "get",
+                    url: "/api/phrases/summary",
+                    params: {
+                        socketId: $scope.socket.id
+                    },
+                    data: {}
+                });
+                
+                httpRequest.success(function(response) {
+                
+                    if (response.error) {
+                        toaster.pop('error', "", response.message);
+                        return;
+                    }
+
+                    $scope.gameSummary.bin1Count = response.bin1Count;
+					$scope.gameSummary.bin2Count = response.bin2Count;
+
+                });
+                
+                httpRequest['finally'](function() {
+                    $scope.fetchingGammeSummary = false;
+                });
+            };
+			
+            document.addEventListener("visibilitychange", function () {
+				var visible = document.visibilityState == "visible";
+			
+                if (visible) {
+                    $scope.unreadMessagesCount = 0;
+                    $scope.$apply();
+                    
+                    document.title = "Pot Game";
+                }
+				
+				$scope.updateIsAway(!visible);
+            });
+            
+            $scope.connect();
+        }]);
+    </script>
+</head>
+
+<body>
+    <div class="container-fluid" ng-controller="mainController">    
+		<div class="row">
+			<div class="col-md-6">
+                <h1>Pot Game</h1>
+                <p>
+                    {{ 'Play the pot game with your friends online' | translate }}.<br />
+                    {{ 'The code is available at' | translate }} <a href="https://github.com/germanger/potgame" target="_blank">GitHub</a>
+                </p>
+                <form class="form-inline">
+                    <select class="form-control" ng-model="currentLanguage" ng-change="setLanguage()">
+                        <option value="es">Español</option>
+                        <option value="en">English</option>
+                    </select>
+                </form>
+			</div>
+			<div class="col-md-6">
+                <h2>{{ 'Copy link and invite people' | translate }}</h2>
+                <form style="margin-top: 15px" ng-show="logged">
+                    <div class="form-group">
+                        <input type="text" class="form-control input-sm" ng-model="url" ng-readonly="true" />
+                    </div>
+                </form>
+			</div>
+		</div>
+        <div class="row">
+			<div class="col-sm-3">
+                <h2 style="margin-top: 30px">{{ 'Users' | translate }} ({{users.length}})</h2>
+                <div class="bordered" id="users" style="height: 200px; overflow-y: scroll">
+                    <table class="table table-bordered table-condensed">
+                        <tr>
+                            <th>username</th>
+							<th style="width: 70px"></th>
+                        </tr>
+                        <tr ng-repeat="user in users">
+                            <td><span style="color: {{ user.color }}">{{user.username}}</span> <em ng-if="user.hasPhrase">(tiene una frase)</em></td>
+							<td><em ng-show="user.isAway">{{ '(away)' | translate }}</em><span ng-show="user.isTyping">{{ 'typing...' | translate }}</span></td>
+                        </tr>
+                    </table>
+                </div>
+				<div class="vertical-resizer" resize-target="#users"></div>
+                <h2>{{ 'Change your name and color' | translate }}</h2>
+                <form class="form-inline" style="margin-top: 15px" ng-show="logged">
+                    <div class="form-group">
+                        <input type="text" class="form-control input-sm" ng-model="currentUser.newUsername" placeholder="{{ currentUser.username }}" />
+                    </div>
+                    <div class="form-group">
+                        <button class="btn btn-default btn-sm" ng-click="changeName()" ng-disabled="username == '' || changingName">{{ 'Set' | translate }}</button>
+                    </div>
+                    <div class="form-group">
+                        <input type="color" class="form-control input-sm" ng-model="currentUser.color" style="width: 50px" ng-change="changeColor()" />
+                    </div>
+                </form>
+			</div>
+            <div class="col-sm-3">
+                <h2>{{ 'Messages' | translate }} ({{messages.length}})</h2>
+                <div id="messages" class="bordered" style="height: 300px; overflow-y: scroll" scroll-glue>
+                    <table class="table table-bordered table-condensed">
+                        <tr ng-repeat="message in messages">
+                            <td>
+                                <div ng-switch="message.messageType">
+                                    <div ng-switch-when="userBroadcastsMessage" style="color: {{ message.user.color }}">
+                                        <strong>{{message.user.username || message.user.userId}}</strong> {{ 'says' | translate }}:<br />
+                                        <p>{{message.chatMessage.body}}</p>
+                                    </div>
+                                    <div ng-switch-when="userConnected">
+                                        <strong style="color: #FFAF99">{{ 'username connected' | translate:{ username: message.user.username } }}</strong>
+                                    </div>
+                                    <div ng-switch-when="userDisconnected">
+                                        <strong style="color: #FFAF99">{{ 'username disconnected' | translate:{ username: message.user.username } }}</strong>
+                                    </div>
+                                    <div ng-switch-when="userChangedName">
+                                        <strong style="color: #FFAF99">{{ 'oldUsername is now newUsername' | translate:{ oldUsername: message.data.oldUsername, newUsername: message.data.newUsername } }}</strong>
+                                    </div>
+                                    <div ng-switch-when="userChangedColor">
+                                        <strong style="color: #FFAF99">{{ message.user.username }} changed their color</strong>
+                                    </div>
+                                    <div ng-switch-when="userClearedMessages">
+                                        <strong style="color: #FFAF99">{{ 'username cleared messages' | translate:{ username: message.user.username } }}</strong>
+                                    </div>
+                                    <div ng-switch-when="userCreatedPhrase">
+                                        <strong style="color: #FFAF99">{{ message.user.username }} creó una frase</strong>
+                                    </div>
+                                    <div ng-switch-when="userGotOneFromBin1">
+                                        <strong style="color: #FFAF99">{{ message.user.username }} sacó una frase de la olla</strong>
+                                    </div>
+                                    <div ng-switch-when="userMovedAllToBin1">
+                                        <strong style="color: #FFAF99">{{ message.user.username }} devolvió todas las frases de la mesa a la olla</strong>
+                                    </div>
+                                    <div ng-switch-when="userMovedPhraseToBin2">
+                                        <strong style="color: #FFAF99">{{ message.user.username }} dejó la frase en la mesa</strong>
+                                    </div>
+                                    <div ng-switch-when="userMovedPhraseToBin1">
+                                        <strong style="color: #FFAF99">{{ message.user.username }} devolvió la frase a la olla</strong>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+				<div class="vertical-resizer" resize-target="#messages"></div>
+                <form style="margin-top: 15px" ng-show="logged">
+                    <div class="form-group">
+                        <textarea style="resize: vertical;" rows="3" class="form-control bordered" ng-model="newMessageBody" ng-enter="submitMessage()" placeholder="Write something..."></textarea>
+                    </div>
+                </form>
+                <form class="form-inline" ng-show="logged">
+                    <div class="form-group">
+                        <button class="btn btn-default btn-sm" ng-click="submitMessage()" ng-disabled="sendingMessage">{{ 'Send' | translate }}</button>
+                    </div>
+                    <div class="form-group">
+                        <button class="btn btn-default btn-sm" ng-click="clearMessages()" ng-disabled="clearingMessages">{{ 'Clear messages' | translate }}</button>
+                    </div>
+                </form>
+            </div>
+            <div class="col-sm-6">
+				<div class="row">
+					<div class="col-md-6">
+						<h2>{{ 'Pot' | translate }}</h2>
+						<div class="bordered" style="padding: 20px">
+							<p style="font-size: 30px">{{gameSummary.bin1Count}} frases</p>
+							<ul>
+								<li><a href ng-click="openNewPhraseModal()">Crear frase</a></li>
+								<li ng-if="gameSummary.bin1Count > 0 && currentPhrase == undefined"><a href ng-click="getOneFromBin1()">Sacar frase al azar</a></li>
+							</ul>
+						</div>
+					</div>
+					<div class="col-md-6">
+						<h2>{{ 'Desk' | translate }}</h2>
+						<div class="bordered" style="padding: 20px">
+							<p style="font-size: 30px">{{gameSummary.bin2Count}} frases</p>
+							<ul>
+								<li ng-if="gameSummary.bin2Count > 0"><a href ng-click="moveAllToBin1()">Devolver todas a la olla</a></li>
+							</ul>
+						</div>
+					</div>
+				</div>
+				<div class="row">
+					<div class="col-md-12" ng-if="currentPhrase">
+						<h2>{{ 'Phrase' | translate }}</h2>
+						<div class="bordered" style="padding: 20px">
+							<p style="font-size: 30px"><em>"{{ currentPhrase.text }}"</em></p>
+							<ul>
+								<li><a href ng-click="moveToBin1()">Devolver a la olla</a></li>
+								<li><a href ng-click="moveToBin2()">Dejarla en la mesa</a></li>
+							</ul>
+						</div>
+					</div>
+				</div>
+            </div>
+        </div>
+		<div class="row">
+			<div class="col-md-12">
+				<h2 style="margin-top: 30px">{{ 'TO-DO' | translate }}</h2>
+				<ul>
+					<li>Autofocus al crear frase</li>
+					<li>Enter para crear frase</li>
+				</ul>
+			</div>
+		</div>
+
+        <hr />
+        <p style="text-align: center;">{{ 'Developed by' | translate }} <a href="http://www.manger.cl" targer="_blank">manger.cl</a></p>
+        
+        <toaster-container toaster-options="{'time-out': 3000, 'close-button': true, 'position-class': 'toast-bottom-right'}"></toaster-container>
+    </div>
+    
+    <script type="text/ng-template" id="new-phrase-modal.html">
+        <div class="modal-header">
+            <h3 class="modal-title">
+                <span>Crear frase</span>
+            </h3>
+        </div>
+        <div class="modal-body">
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="form-group">
+                        <label>Frase</label>
+                        <input type="text" class="form-control input-sm" ng-model="text" />
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+			<button class="btn btn-primary btn-sm" ng-click="create()" ng-disabled="working">Crear</button>
+            <button class="btn btn-primary btn-sm" ng-click="cancel()" ng-disabled="working">Close</button>
+        </div>
+
+    </script>
+
+</body>
+</html>
